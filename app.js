@@ -173,6 +173,6 @@ app.post('/generate-site', async (req, res) => {
 // ============================
 // START SERVER
 // ============================
-app.listen(3000, () => {
-  console.log('🚀 Server running on http://localhost:3000');
+app.listen(8318, () => {
+  console.log('🚀 Server running on http://localhost:8318');
 });
