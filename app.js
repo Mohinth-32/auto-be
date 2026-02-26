@@ -20,10 +20,19 @@ app.post('/generate-site', async (req, res) => {
 
   try {
     let { html, img_url } = req.body;
+    const fileName = req.body['file-name'];
+    const accentColor = req.body['accent-color'];
+    const navbarColor = req.body['navbar-color'];
 
     if (!html || !img_url) {
       return res.status(400).json({ message: 'html or img_url missing' });
     }
+
+    // Sanitize file name (fallback to 'staticwebsite')
+    const safeName = fileName
+      ? fileName.replace(/[^a-zA-Z0-9_-]/g, '').trim() || 'staticwebsite'
+      : 'staticwebsite';
+    const zipFileName = `${safeName}.zip`;
 
     // -------------------------
     // CLEAN HTML
@@ -88,6 +97,28 @@ app.post('/generate-site', async (req, res) => {
     await fs.writeFile(path.join(siteDir, 'index.html'), html, 'utf8');
 
     // -------------------------
+    // DYNAMIC CSS INJECTION
+    // -------------------------
+    const cssPath = path.join(siteDir, 'assets', 'css', 'main.css');
+    let css = await fs.readFile(cssPath, 'utf8');
+
+    if (accentColor) {
+      css = css.replace(
+        /--accent-color:\s*[^;]+;/,
+        `--accent-color: ${accentColor};`
+      );
+    }
+
+    if (navbarColor) {
+      css = css.replace(
+        /--nav-hover-color:\s*[^;]+;/,
+        `--nav-hover-color: ${navbarColor};`
+      );
+    }
+
+    await fs.writeFile(cssPath, css, 'utf8');
+
+    // -------------------------
     // CREATE ZIP (IN MEMORY)
     // -------------------------
     const archive = archiver('zip', { zlib: { level: 9 } });
@@ -112,7 +143,7 @@ app.post('/generate-site', async (req, res) => {
     await axios.post(WEBHOOK_URL, zipBuffer, {
       headers: {
         'Content-Type': 'application/zip',
-        'Content-Disposition': 'attachment; filename=staticwebsite.zip',
+        'Content-Disposition': `attachment; filename=${zipFileName}`,
       },
     });
 
@@ -121,7 +152,7 @@ app.post('/generate-site', async (req, res) => {
     // -------------------------
     res.json({
       message: 'Site generated and sent successfully',
-      file: 'staticwebsite.zip',
+      file: zipFileName,
     });
   } catch (err) {
     console.error(err);
